@@ -1,0 +1,253 @@
+# Changelog
+
+## RAMEN 2.99.0
+
+This minor version prepares RAMEN for submission to Bioconductor. It is
+mostly a formatting and packaging release: apart from the change to the
+seed described below, the analysis functions return the same results as
+in 2.1.2, and the error and warning messages are unchanged.
+
+- [`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md)
+  and
+  [`nullDistGE()`](https://docs.ropensci.org/RAMEN/reference/nullDistGE.md)
+  no longer leave the global random number generator reseeded. The
+  `seed` argument now applies for the duration of the call only: the RNG
+  state found on entry is restored when the function returns.
+
+## RAMEN 2.1.2
+
+This patch focuses on the running time and memory usage of the package,
+and fixes a few bugs:
+
+- Fixed a bug in
+  [`lmGE()`](https://docs.ropensci.org/RAMEN/reference/lmGE.md) where
+  the function would throw an error when a covariate had a non-syntactic
+  name (e.g. “cell type”). This happened whenever the winning model was
+  G+E or GxE.
+- Fixed a bug in
+  [`lmGE()`](https://docs.ropensci.org/RAMEN/reference/lmGE.md) where a
+  `selected_variables` object in which no VML had any selected genotype
+  or environmental variable would throw an error. All the VML are now
+  returned with the basal model as their winner, which is what already
+  happened when only some of them were empty.
+- Fixed a bug in
+  [`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md)
+  where setting `environmental_matrix = NULL`, which the documentation
+  describes as the way to run the variable selection on the genotype
+  alone, would throw an error instead. The documentation of that
+  argument was also narrowed: a `genotype_matrix` is always required,
+  and only the environmental one can be omitted.
+
+The performance work touches
+[`findVML()`](https://docs.ropensci.org/RAMEN/reference/findVML.md),
+[`medCorVMR()`](https://docs.ropensci.org/RAMEN/reference/medCorVMR.md),
+[`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md),
+[`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md),
+[`lmGE()`](https://docs.ropensci.org/RAMEN/reference/lmGE.md) and
+[`nullDistGE()`](https://docs.ropensci.org/RAMEN/reference/nullDistGE.md).
+Most of it resolves look-ups that were being repeated once per locus a
+single time up front instead, and avoids keeping unnecessary copies of
+the genotype and methylation objects. Both the running time and the
+memory each parallel worker needs are reduced.
+
+Outputs are unchanged, with one exception:
+[`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md)
+now computes medians with
+[`matrixStats::colMedians()`](https://rdrr.io/pkg/matrixStats/man/rowMedians.html).
+For VML with an even number of probes the two middle values are averaged
+slightly differently than by
+[`median()`](https://rdrr.io/r/stats/median.html), so results can differ
+in the last representable digit (a relative difference of about one
+machine epsilon). VML with an odd number of probes, including all sVMPs,
+are unaffected.
+
+The documentation of
+[`nullDistGE()`](https://docs.ropensci.org/RAMEN/reference/nullDistGE.md)
+now notes that the same seed is handed to
+[`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md)
+in every permutation, so the cross-validation folds are shared across
+permutations.
+
+On the testing side, a test was added checking that the variables
+[`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md)
+reports are the ones the underlying LASSO fits select, and the tests
+that register a parallel back-end now restore the sequential one when
+they finish, so that the back-end no longer leaks into the test files
+that run after them.
+
+Finally, the repository was transferred to ropensci after passing the
+peer review process. All repository and website links were updated to
+reflect this change.
+
+The changes in this patch were conducted with help of Claude Opus 5.
+
+## RAMEN 2.1.1
+
+This patch fixes some minor bugs in RAMEN including:
+
+- Improved argument check - empty objects now throw errors, and all
+  functions check for matched IDs across all objects.
+- Fixed bug in
+  [`nullDistGE()`](https://docs.ropensci.org/RAMEN/reference/nullDistGE.md)
+  where the seed was fixed to 1 during the
+  [`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md)
+  step instead of using the seed argument provided.
+- Fixed a bug in
+  [`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md)
+  where the function would throw an error when, in the absence of
+  covariates, a VML had only 1 SNP. In that case, the variable selection
+  for G is now not conducted and the same SNP is returned.
+- Fixed a bug in
+  [`lmGE()`](https://docs.ropensci.org/RAMEN/reference/lmGE.md) where
+  the function would throw an error when no covariates were fed into the
+  function.
+- [`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md)
+  now explicitly errors if the `VML` object has duplicate `VML_index`
+  values, instead of silently merging them.
+
+In addition to that, we added a section on the vignette explaining how
+to set up a parallel backend, and expanding on the data
+assumptions/expectations from RAMEN.
+
+The `IlluminaHumanMethylation450kanno.ilmn12.hg19` and
+`IlluminaHumanMethylationEPICv2anno.20a1.hg38` annotation packages have
+been moved Suggests to lighten the default installation, since most
+users only work with one microarray platform at a time.
+
+This version also includes several internal performance improvements
+(faster argument validation, VMR correlation computation, probe
+variability scoring, and VML summarization), with no change in output.
+
+This patch presents no changes on the user’s end, other than the
+dependency change and the
+[`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md)
+duplicate-index check noted above.
+
+## RAMEN 2.1.0 - July 14, 2026
+
+This minor version presents a couple of changes that improve the
+integration of RAMEN with GenomicRanges objects and Bioconductor: -
+[`findVML()`](https://docs.ropensci.org/RAMEN/reference/findVML.md)
+outputs a GRanges object for the identified VML instead of a data
+frame. - Downstream functions (i.e.,
+[`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md),
+[`findCisSNPs()`](https://docs.ropensci.org/RAMEN/reference/findCisSNPs.md),
+[`selectVariables()`](https://docs.ropensci.org/RAMEN/reference/selectVariables.md),
+[`medCorVMR()`](https://docs.ropensci.org/RAMEN/reference/medCorVMR.md)
+and
+[`nullDistGE()`](https://docs.ropensci.org/RAMEN/reference/nullDistGE.md))
+now take GRanges objects as an input, instead of data frames. The
+argument name changed from “VML_df” to “VML”. When appropriate, the
+output is now also a GRanges object. -
+[`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md)
+now outputs a matrix instead of a data frame.
+
+In addition to that, the Vignette has been improved. New sections have
+been added to provide guidance and recommendations to the users (e.g
+regarding data pre-processing andexpectations, as RAMEN expects all data
+to be alread cleaned, quality checked, and pre-processed). Also, some
+sections have been improved to provide clearer instructions.
+
+This minor version also has multiple improvements to the code, which
+present no changes in the user front but have a positive impact on the
+internal functioning of the package, such as:
+
+- Optimized examples with reduced running time.
+- Reduced dependencies in the package. The installation time has been
+  significantly reduced.
+- Implemented internal helper functions to improve the readability of
+  the code and improve its debugging.
+- Reduced data casting and conditionals inside the functions.
+- Improved error messages across all functions.
+
+These changes were motivated by the rOpenSci peer review process.
+
+## RAMEN 2.0.1 - June 30, 2026
+
+This patch version presents no changes from the user perspective. Code
+improvements have been made to the package to address comments and
+suggestions from the editor of the rOpenSci peer review process. These
+include:
+
+- Improving the README, adding quick usage examples, more details on the
+  functionality of RAMEN, and better installation instructions.
+- Fixing inconsistencies across the package documentation, such as email
+  addresses, author information, and citation details.
+- Adding a continuous integration check for R 4.2.0
+- Minor code style improvements.
+- Separating the tests into self-contained independent files (one per
+  function) to improve organization and readability.
+
+## RAMEN 2.0.0 - January 13, 2026
+
+In this version, we have made an important change in RAMEN terminology
+across all the code and documentation to more accurately reflect the
+biological concepts represented by the data. The term “Variably
+Methylated Regions (VMR)” used in RAMEN v1 has been replaced by
+“Variably Methylated Loci (VML)” in RAMEN v2, as not all VML are
+composed of 2 or more highly variable probes. VML are further composed
+of Variably Methylated Regions (previously named “canonical VMR” in
+RAMEN v1) and sparse Variably Methylated Probes (sVMPs; previously named
+“non-canonical VMR” in RAMENv1). To be clear, there are no changes in
+how these VML are identified, we only changed how we label these
+categories.
+
+| Updated name in RAMEN v2                | Deprecated name in RAMEN v1      |
+|-----------------------------------------|----------------------------------|
+| Variably Methylated Loci (VML)          | Variably Methylated Region (VMR) |
+| Variably Methylated Region (VMR)        | canonical VMR (cVMR)             |
+| sparse Variably Methylated Probe (sVMP) | non-canonical VMR (ncVMR)        |
+
+Terminology update {.table}
+
+- To reflect the terminology change, the following functions had a name
+  change:
+  [`findVML()`](https://docs.ropensci.org/RAMEN/reference/findVML.md)
+  (previously named `findVMRs()` in RAMEN v1) and
+  [`summarizeVML()`](https://docs.ropensci.org/RAMEN/reference/summarizeVML.md)
+  (previously named `summarizeVMRs()` in RAMEN v1).
+
+- [`findVML()`](https://docs.ropensci.org/RAMEN/reference/findVML.md):
+
+  - Output: list does not separate VMRs and sVMPs into two different
+    list elements anymore. Now, a single element (“VML”) is returned in
+    the output list, which contains both VMRs and sVMPs, labelled
+    accordingly under the *type* column; this VML element is now a data
+    frame, and not a Genomic Ranges object to facilitate data wrangling
+    and plotting. The function now automatically indexes the VML.
+
+  - The user does not need to provide the array manifest anymore if
+    working with the Illumina 450k, EPICv1 or EPICv2 array. The
+    `array_manifest` argument accepts now
+    “IlluminaHumanMethylation450k”, “IlluminaHumanMethylationEPICv1” and
+    “IlluminaHumanMethylationEPICv2”.
+
+  - There is a new method to identify VML using ultrastable probes
+    (probes which DNA methylation is known to be stable independently of
+    tissue and developmental stage) to discriminate Highly Variable
+    Probes, which are then grouped into VML. This method is the default
+    one now. For more information please see the
+    [`findVML()`](https://docs.ropensci.org/RAMEN/reference/findVML.md)
+    documentation and the package vignette. The previously default
+    method to identify Highly Variable Probes (top 10% of probes with
+    the highest variance in the data set) is still available using the
+    argument `var_distribution = "all"`.
+
+- [`nullDistGE()`](https://docs.ropensci.org/RAMEN/reference/nullDistGE.md):
+  Prints messages to keep track of the progress. Fixed a bug that made
+  doFuture parallelization strategies crash.
+
+- All functions have examples in the documentation.
+
+- Added tests to reach a code coverage of \>90% in all functions.
+
+- Improved error catches to make functions stop early when the inputs
+  are not in the right format. Fixed various bugs throughout the code
+  (no user.
+
+- Added news, citation and contributing files to the repository.
+
+- Citation info is provided when loading the package.
+
+- The package repository has now informative badges and Continuous
+  Integration checks.

@@ -1,0 +1,26 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://docs.ropensci.org/RAMEN/404.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/CONTRIBUTING.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/LICENSE.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/articles/RAMEN.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/articles/index.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/authors.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/index.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/news/index.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/RAMEN-package.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/findCisSNPs.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/findVML.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/index.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/lmGE.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/medCorVMR.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/nullDistGE.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/selectVariables.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/summarizeVML.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/test_covariates.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/test_environmental_matrix.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/test_genotype_information.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/test_genotype_matrix.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/test_methylation_data.html</loc></url>
+<url><loc>https://docs.ropensci.org/RAMEN/reference/ultrastable_cpgs.html</loc></url>
+</urlset>
+

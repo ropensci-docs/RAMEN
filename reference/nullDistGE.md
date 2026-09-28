@@ -1,0 +1,217 @@
+# Simulate a delta R squared null distribution of G and E effects on DNAme variability
+
+This function simulates the delta R squared distribution under the null
+hypothesis of G and E having no association with DNA methylation (DNAme)
+variability through a permutation analysis. To do so, this function
+shuffles the G and E variables in the dataset, which is followed by a
+the variable selection and modelling steps with *selectVariables()* and
+*lmGE()*.These steps are repeated several times as indicated in the
+*permutations* parameter. By using shuffled G and E data, we simulate
+the increase of R2 that would be observed in random data using the RAMEN
+methodology.
+
+## Usage
+
+``` r
+nullDistGE(
+  VML_wSNPs,
+  genotype_matrix,
+  environmental_matrix,
+  summarized_methyl_VML,
+  permutations = 5,
+  covariates = NULL,
+  seed = NULL,
+  model_selection = "AIC"
+)
+```
+
+## Arguments
+
+- VML_wSNPs:
+
+  GRanges object produced by *RAMEN::findCisSNPs()*. Must contain the
+  following metadata columns: "VML_index" (a unique ID for each VML in
+  VML_df AS CHARACTERS) and "SNP" (a column with a list as observation,
+  containing the name of the SNPs surrounding the corresponding VML).
+  The SNPs contained in the "SNP" column must be present in the object
+  that is indicated in the genotype_matrix argument. VML_wSNPs must
+  contain all the VML contained in summarized_methyl_VML. VML with no
+  surrounding SNPs must have an empty list in the SNP column (either
+  list(NULL), list(NA), list("") or list(character(0))).
+
+- genotype_matrix:
+
+  A matrix of number-encoded genotypes. Columns must correspond to
+  samples, and rows to SNPs. We suggest using a gene-dosage model, which
+  would encode the SNPs ordinally depending on the genotype allele
+  charge, such as 2 (AA), 1 (AB) and 0 (BB). The column names must
+  correspond with individual IDs.
+
+- environmental_matrix:
+
+  A matrix of environmental variables. Only numeric values are
+  supported. In case of factor variables, it is recommended to encode
+  them as numbers or re-code them into dummy variables if there are more
+  than two levels. Columns must correspond to environmental variables
+  and rows to individuals. Row names must be the individual IDs.
+
+- summarized_methyl_VML:
+
+  A matrix containing each individual's VML summarized methylation. It
+  is suggested to use the output of *RAMEN::summarizeVML()*.Rows must
+  reflects individuals, and columns VML The names of the columns must
+  correspond to the index of said VML, and it must match the index of
+  VML_wSNPs\$VML_index. The names of the rows must correspond to the
+  sample IDs, and must match with the IDs of the other matrices.
+
+- permutations:
+
+  Numer of permutation analyses to run.
+
+- covariates:
+
+  A matrix containing the covariates (i.e., concomitant variables /
+  variables that are not the ones you are interested in) that will be
+  adjusted for in the final GxE models (e.g., cell type proportions,
+  age, etc.). Each column should correspond to a covariate and each row
+  to an individual. Row names must correspond to the individual IDs.
+
+- seed:
+
+  An integer number that initializes a pseudo-random number generator.
+  Random numbers in this function are created during the lambda cross
+  validation and the LASSO stages. Setting a seed is highly encouraged
+  for result reproducibility. **The seed is applied for the duration of
+  this call only; the global random stream is restored when the function
+  returns**.
+
+- model_selection:
+
+  Which metric to use to select the best model for each VML. Supported
+  options are "AIC" or BIC".
+
+## Value
+
+A data frame with the following columns:
+
+- VML_index: The unique ID of the VML.
+
+- model_group: The group to which the winning model belongs to (i.e., G,
+  E, G+E or GxE)
+
+- tot_r_squared: R squared of the winning model
+
+- R2_difference: the increase in R squared obtained by including the G/E
+  variable(s) from the winning model (i.e., the R squared difference
+  between the winning model and the model only with the concomitant
+  variables specified in *covariates*; tot_r_squared - basal_rsquared in
+  the lmGE output)
+
+- AIC_difference/BIC_difference: the AIC/BIC difference between the
+  winning model and the model only with the concomitant variables
+  specified in *covariates*; BIC/AIC - basal_BIC/basal_BIC in the lmGE
+  output)
+
+## Details
+
+The core pipeline from the RAMEN package identifies the best explanatory
+model per VML. However, despite these models being winners in comparison
+to models including any other G/E variable(s) in the dataset, some
+winning models might perform no better than what we would expect by
+chance. Therefore, the goal of this function is to create a distribution
+of increase in R2 under the null hypothesis of G and E having no
+associations with DNAme. The null distribution is obtained through
+shuffling the G and E variables in a given dataset and conducting the
+variable selection and G/E model selection. That way, we can simulate
+how much additional variance would be explained by the models defined as
+winners by the RAMEN methodology in a scenario where the G and E
+associations with DNAme are randomized. This distribution can be then
+used to filter out winning models in the non-shuffled dataset that do
+not add more to the explained variance of the basal model than what
+randomized data do.
+
+Under the assumption that after adjusting for the concomitant variables
+all VML across the genome follow the same behavior regarding an
+increment of explained variance with randomized G and E data, we can
+pool the delta R squared values from all VML to create a null
+distribution taking advantage of the high number of VML in the dataset.
+This assumption decreases significantly the number of permutations
+required to create a null distribution and reduces the computational
+time. For further information please read the RAMEN paper
+(https://doi.org/10.1186/s13059-025-03864-4).
+
+**Reproducibility and the use of the seed**
+
+Random numbers are drawn in this function when the permutation orders
+are created, and again inside each permutation during the
+cross-validation and LASSO stages of *selectVariables()*. Setting *seed*
+makes the whole run reproducible.
+
+Note that the same *seed* value is handed to *selectVariables()* in
+every permutation. For a given VML the cross-validation folds are
+therefore identical from one permutation to the next, and what differs
+between permutations is the shuffled G and E data. The permutations are,
+in that sense, not fully independent draws with respect to the
+cross-validation randomness. This holds one source of variability fixed
+rather than biasing the delta R squared values, and its practical effect
+is small because the null distribution pools delta R squared across all
+the VML in the dataset, which is where nearly all of its draws come
+from. It is nonetheless worth keeping in mind when interpreting the
+spread of the distribution.
+
+The seed is applied for the duration of this call only: the random
+number generator state found on entry is restored when the function
+returns, so a seeded run leaves the global random stream untouched.
+
+## Examples
+
+``` r
+# Evaluate sequentially
+foreach::registerDoSEQ()
+## Find VML in test data
+VML <- findVML(
+  methylation_data = test_methylation_data,
+  array_manifest = "IlluminaHumanMethylationEPICv1",
+  cor_threshold = 0,
+  var_method = "variance",
+  var_distribution = "ultrastable",
+  var_threshold_percentile = 0.99,
+  max_distance = 1000
+)
+#> Identifying Highly Variable Probes...
+#> Identifying sparse Variable Methylated Probes
+#> Identifying Variable Methylated Regions...
+#> Applying correlation filter to Variable Methylated Regions...
+## Find cis SNPs around VML
+VML_with_cis_snps <- findCisSNPs(
+  # Use only 5 for demonstration purposes
+  VML = VML$VML[1:5, ],
+  genotype_information = test_genotype_information,
+  distance = 1e6
+)
+#> Reminder: please make sure that the positions of the VML data frame and the ones in the genotype information are from the same genome build.
+
+## Summarize methylation levels in VML
+summarized_methyl_VML <- summarizeVML(
+  methylation_data = test_methylation_data,
+  VML = VML_with_cis_snps
+)
+
+## Simulate null distribution of G and E contributions on DNAme variability
+## We will only run one permutation for demonstration purposes
+null_dist <- nullDistGE(
+  VML_wSNPs = VML_with_cis_snps,
+  genotype_matrix = test_genotype_matrix,
+  environmental_matrix = test_environmental_matrix,
+  summarized_methyl_VML = summarized_methyl_VML,
+  # Use one permutation for demonstration purposes
+  permutations = 1,
+  covariates = test_covariates,
+  seed = 1,
+  model_selection = "AIC"
+)
+#> Starting permutation 1 of 1
+#> Starting variable selection of permutation 1 of 1
+#> Starting lmGE in permutation 1 of 1
+#> Wrapping up permutation 1 of 1
+```

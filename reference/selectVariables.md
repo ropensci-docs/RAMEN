@@ -1,0 +1,192 @@
+# Selection of relevant environment and genotype variables associated with Variably Methylated Loci (VML)
+
+For each VML, this function selects potentially relevant genotype and
+environmental variables associated with DNA methylation levels of said
+VML using LASSO. See details below for more information.
+
+## Usage
+
+``` r
+selectVariables(
+  VML_wSNPs,
+  genotype_matrix,
+  environmental_matrix,
+  covariates = NULL,
+  summarized_methyl_VML,
+  seed = NULL
+)
+```
+
+## Arguments
+
+- VML_wSNPs:
+
+  GRanges object produced by *RAMEN::findCisSNPs()*. Must contain the
+  following metadata columns: "VML_index" (a unique ID for each VML in
+  VML_df AS CHARACTERS) and "SNP" (a column with a list as observation,
+  containing the name of the SNPs surrounding the corresponding VML).
+  The SNPs contained in the "SNP" column must be present in the object
+  that is indicated in the genotype_matrix argument. VML_wSNPs must
+  contain all the VML contained in summarized_methyl_VML. VML with no
+  surrounding SNPs must have an empty list in the SNP column (either
+  list(NULL), list(NA), list("") or list(character(0))).
+
+- genotype_matrix:
+
+  A matrix of number-encoded genotypes. Columns must correspond to
+  samples, and rows to SNPs. We suggest using a gene-dosage model, which
+  would encode the SNPs ordinally depending on the genotype allele
+  charge, such as 2 (AA), 1 (AB) and 0 (BB). The column names must
+  correspond with individual IDs.
+
+- environmental_matrix:
+
+  A matrix of environmental variables. Only numeric values are
+  supported. In case of factor variables, it is recommended to encode
+  them as numbers or re-code them into dummy variables if there are more
+  than two levels. Columns must correspond to environmental variables
+  and rows to individuals. Row names must be the individual IDs.
+
+- covariates:
+
+  A matrix containing the covariates (i.e., concomitant variables /
+  variables that are not the ones you are interested in) that will be
+  adjusted for in the final GxE models (e.g., cell type proportions,
+  age, etc.). Each column should correspond to a covariate and each row
+  to an individual. Row names must correspond to the individual IDs.
+
+- summarized_methyl_VML:
+
+  A matrix containing each individual's VML summarized methylation. It
+  is suggested to use the output of *RAMEN::summarizeVML()*.Rows must
+  reflects individuals, and columns VML The names of the columns must
+  correspond to the index of said VML, and it must match the index of
+  VML_wSNPs\$VML_index. The names of the rows must correspond to the
+  sample IDs, and must match with the IDs of the other matrices.
+
+- seed:
+
+  An integer number that initializes a pseudo-random number generator.
+  Random numbers in this function are created during the lambda cross
+  validation and the LASSO stages. Setting a seed is highly encouraged
+  for result reproducibility. **The seed is applied for the duration of
+  this call only; the global random stream is restored when the function
+  returns**.
+
+## Value
+
+A data frame with three columns:
+
+- VML_index: Unique VML ID.
+
+- selected_genot: Column containing lists as values with the selected
+  SNPs.
+
+- selected_env: Column containing lists as values with the selected
+  environmental variables.
+
+## Details
+
+selectVariables() uses LASSO, which is an embedded variable selection
+method that penalizes models that are more complex (i.e., that contain
+more variables) in favor of simpler models (i.e. that contain less
+variables), but not at the expense of reducing predictive power. Using
+LASSO's variable screening property (with high probability, the LASSO
+estimated model includes the substantial covariates and drops the
+redundant ones) this function selects genotype and environment variables
+with potential relevance in the Variable Methylated Loci (VML) dataset
+(see also Bühlmann and van de Geer, 2011). For each VML, LASSO is run
+three times: 1) including only the genotype variables for the selection
+step, 2) including only the environmental variables for the selection
+step, and 3) Including both the genotype and environmental variables in
+the selection step. This is done to ensure that the function captures
+the variables that are relevant within their own category (e.g., SNPs
+that are strongly associated with the DNAme levels of a VML in the
+presence of the rest of the SNPs) or in the presence of the variables of
+the other category (e.g. SNPs that are strongly associated with the
+DNAme levels of a VML in the presence of the rest of BOTH the SNPs AND
+environmental variables). Every time LASSO is run, the basal covariates
+(i.e., concomitant variables )indicated in the argument *covariates* are
+not penalized (i.e., those variables are always included in the models
+and their coefficients are not subjected to shrinkage). That way, only
+the most promising E and G variables in the presence of the concomitant
+variables will be selected.
+
+Each LASSO model uses a tuned lambda that minimizes the 5-fold
+cross-validation error within its corresponding data. This function uses
+the lambda.min value in contrast to lambda.1se because its goal within
+the RAMEN package is to use LASSO to reduce the number of variables that
+are going to be used next for fitting pairwise interaction models in
+*lmGE()*. Since at this step variables are being selected based only on
+main effects, it is preferable to cast a "wider net" and select a
+slightly higher number of variables that could potentially have a strong
+interaction effect when paired with another variable. Furthermore, since
+in this case LASSO is being used as a screening procedure to select
+variables that will be fit separately in independent models and
+compared, the overfitting issue of using lambda.min does not impose a
+big concern. After finding the best lambda value, the sequence of models
+is fit by coordinate descent using *glmnet()*. Random numbers in this
+function are created during the lambda cross validation and the LASSO
+stages. Setting a seed is highly encouraged for result reproducibility
+using the *seed* argument. The seed is applied for the duration of this
+call only: the random number generator state found on entry is restored
+when the function returns, so a seeded run leaves the global random
+stream untouched.
+
+This function supports parallel computing for increased speed. To do so,
+you have to set the parallel back-end in your R session before running
+the function (e.g., *doParallel::registerDoParallel(4)*). After that,
+the function can be run as usual. It is recommended to also set
+options(future.globals.maxSize= +Inf). Please make sure that your data
+has no NAs and it's all numerical, since the LASSO implementation we use
+does not support missing or non-numerical values.
+
+Note: If you want to conduct the variable selection step only on the
+genotype, you can set *environmental_matrix = NULL*. In that case only
+the genotype model is fitted, and the *selected_env* column of the
+output is empty for every VML. A *genotype_matrix* is always required.
+
+## Examples
+
+``` r
+## Find VML in test data
+# Evaluate sequentially
+foreach::registerDoSEQ()
+VML <- RAMEN::findVML(
+  methylation_data = RAMEN::test_methylation_data,
+  array_manifest = "IlluminaHumanMethylationEPICv1",
+  cor_threshold = 0,
+  var_method = "variance",
+  var_distribution = "ultrastable",
+  var_threshold_percentile = 0.99,
+  max_distance = 1000
+)
+#> Identifying Highly Variable Probes...
+#> Identifying sparse Variable Methylated Probes
+#> Identifying Variable Methylated Regions...
+#> Applying correlation filter to Variable Methylated Regions...
+## Find cis SNPs around VML
+VML_with_cis_snps <- RAMEN::findCisSNPs(
+  # Use only 5 for demonstration purposes
+  VML = VML$VML[1:5, ],
+  genotype_information = RAMEN::test_genotype_information,
+  distance = 1e6
+)
+#> Reminder: please make sure that the positions of the VML data frame and the ones in the genotype information are from the same genome build.
+
+## Summarize methylation levels in VML
+summarized_methyl_VML <- RAMEN::summarizeVML(
+  methylation_data = RAMEN::test_methylation_data,
+  VML = VML_with_cis_snps
+)
+
+## Select relevant genotype and environmental variables
+selected_vars <- RAMEN::selectVariables(
+  VML_wSNPs = VML_with_cis_snps,
+  genotype_matrix = RAMEN::test_genotype_matrix,
+  environmental_matrix = RAMEN::test_environmental_matrix,
+  covariates = RAMEN::test_covariates,
+  summarized_methyl_VML = summarized_methyl_VML,
+  seed = 1
+)
+```

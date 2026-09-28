@@ -1,0 +1,13 @@
+{
+  "commit": {
+    "commit": "57405c7c8443c0c0039406883902fd8633846da6",
+    "author": "Erick Navarro <ericknadel98@ciencias.unam.mx>",
+    "time": "2026-08-29T00:11:23Z",
+    "files": 2,
+    "merge": false,
+    "message": "Update github actions after bumping R dependency up\n"
+  },
+  "repo": "https://github.com/ropensci/RAMEN",
+  "pkg": "RAMEN",
+  "time": "2026-09-28T13:17:38Z"
+}
